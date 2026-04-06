@@ -23,11 +23,21 @@ That's the test. Everything else follows from whether that works.
 
 ## Roadmap
 
-### Step 1: Capture and annotate
+### Ground Zero: Audio-only MCP tool against Claude Code
 
-Hook up mic and camera. Extract basic features: pitch, energy, pace, facial action units, gesture. Translate these into text annotations injected into the LLM prompt. Crude but functional -- the goal is to have something running, not something perfect.
+The simplest possible prototype. No camera, no gesture, no complex perception stack. Just:
 
-There's existing research and tooling for codifying emotional expression that we can piggyback off of for the early stages rather than building perception from scratch:
+1. **Mic captures audio** as you dictate (you're already doing this)
+2. **Extract basic prosody**: pitch contour, energy, speech rate, pauses — Parselmouth/Praat can handle this
+3. **Expose as an MCP tool** that Claude Code can call: `query_user_state()`
+4. **CLAUDE.md instruction** tells the LLM: "You have access to a `query_user_state` MCP tool. When you're uncertain about the user's intent — whether they're requesting action or thinking aloud, how confident they are, whether ambiguity in their message might be resolved by how they said it — call it before proceeding."
+5. **See what happens.** Does the LLM call it? When? Does it call it at the right moments — moments where prosodic data would actually resolve ambiguity?
+
+This tests the pull model immediately. The LLM's tool-calling behavior is driven by the same mechanism that drives everything else — tool descriptions, memory files, system instructions. There's no reason a user-state tool wouldn't integrate the same way. The first thing you learn isn't even whether it improves responses. It's whether the LLM's uncertainty about intent actually correlates with moments where prosodic data would help.
+
+Audio is where most of the communicative intent signal lives anyway (the Weizmann research was all prosody-based), and it's one input device you're already using if you're dictating.
+
+There's existing research and tooling for codifying emotional expression that we can piggyback off of rather than building perception from scratch:
 
 - **Hume AI** -- API access to 48 emotional dimensions from voice, plus facial expression analysis. The most production-ready option for getting emotion scores quickly.
 - **FACS (Facial Action Coding System)** -- 44 action units mapping facial muscle movements. Implemented in open-source tools like OpenFace and MediaPipe.
@@ -35,7 +45,7 @@ There's existing research and tooling for codifying emotional expression that we
 - **Weizmann prosodic framework** -- Academic but the most rigorous model of what tone carries (5 simultaneous layers per utterance).
 - **MediaPipe** -- Google's open-source framework for face mesh, pose estimation, and gesture recognition from camera input.
 
-The important design note: these tools output structured scores and classifications (confidence: 0.72, emotion: "determination"). That framing imposes false precision on something that's inherently approximate and contextual. For the prototype, it may be better to translate these signals into natural language descriptions rather than numeric scores -- descriptions that are honest about the approximate, layered nature of emotional expression rather than forcing it into a mathematical frame.
+Design note: these tools output structured scores and classifications (confidence: 0.72, emotion: "determination"). That framing imposes false precision on something that's inherently approximate and contextual. For the prototype, it may be better to translate these signals into natural language descriptions rather than numeric scores — descriptions that are honest about the approximate, layered nature of emotional expression rather than forcing it into a mathematical frame.
 
 ### Step 2: Establish a baseline
 
@@ -43,19 +53,21 @@ Before testing the system, document what "without it" looks like. Record the sam
 
 ### Step 3: A/B test
 
-Same inputs, now with annotations. Does the LLM respond differently? Does the difference match intended meaning? **This is the kill decision.** If annotated prompts don't measurably change LLM interpretation of ambiguous intent, the rest doesn't matter.
+Same inputs, now with the MCP tool available. Does the LLM call it? Does it respond differently when it does? Does the difference match intended meaning? **This is the kill decision.** If prosodic data accessible via tool call doesn't measurably change LLM interpretation of ambiguous intent, the rest doesn't matter.
+
+The call pattern itself is also data: if the LLM calls it on every message, that suggests the ambient mode (lightweight always-on tags) might be a better fit than pull. If it calls it rarely but accurately at real decision forks, the pull model is validated.
 
 ### Step 4: Find what matters
 
-Some annotations will change LLM behavior. Some won't. Confidence level might be load-bearing. Gaze direction might be noise. Prune the dimensions that don't pull weight, double down on the ones that do.
+Some prosodic features will change LLM behavior. Some won't. Confidence level might be load-bearing. Speech rate might be noise. Prune the dimensions that don't pull weight, double down on the ones that do.
 
-### Step 5: Move to pull model
+### Step 5: Add camera and visual signals
 
-Now that you know which dimensions matter, expose them as an MCP tool the LLM can query on-demand instead of always injecting them. Test whether on-demand querying works as well as always-on annotation with less context noise.
+Once audio-only has been validated (or the kill decision says to pivot), add facial expression and gesture. MediaPipe for face mesh and pose. Fuse with audio in the state service. Test whether visual data adds signal beyond what prosody alone provides.
 
 ### Step 6: Add temporal context
 
-The state service starts tracking trends -- is confidence rising or falling across the conversation? This goes beyond per-utterance annotation into something that couldn't be done with simple prompt injection.
+The state service starts tracking trends — is confidence rising or falling across the conversation? This goes beyond per-utterance annotation into something that couldn't be done with simple prompt injection.
 
 ### Step 7: Real usage
 
@@ -104,7 +116,7 @@ A detailed survey of prior art, existing systems, theoretical frameworks, and th
 
 ## Status
 
-Early-stage. The ideas here emerged from an extended exploration and haven't been validated with a prototype yet. Next step is Step 1: get capture and annotation running.
+Early-stage. The ideas here emerged from an extended exploration and haven't been validated with a prototype yet. Next step is Ground Zero: audio-only MCP tool wired into Claude Code.
 
 ## License
 
