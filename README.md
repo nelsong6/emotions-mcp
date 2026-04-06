@@ -1,6 +1,6 @@
 # emotions-mcp
 
-**Queryable user expressive state as a tool for LLMs.**
+**Exploring how LLMs could understand what humans actually mean -- not just what they type.**
 
 ## The Problem
 
@@ -8,13 +8,19 @@ When humans communicate, the words are only part of the message. Tone of voice, 
 
 Current LLM interfaces strip all of this away. A text transcript of "we could add caching to the API layer" tells the model nothing about whether the user is proposing a firm plan or floating a half-formed idea. The tone, the shoulder shrug, the rising intonation -- all lost.
 
-Existing approaches to this problem use a **push model**: continuously monitor the user's emotional state and stream it into the LLM as context. This creates noise, burns context window, and forces the perception system to decide what's relevant rather than the reasoning system.
+This project is an ongoing exploration of that gap: what's lost, what it would take to recover it, and what the right architecture might look like. We don't have the answers yet -- but the questions are getting sharper.
 
-## The Idea
+## Where the Exploration Has Gone So Far
 
-**User expressive state as a queryable service, not a context dump.**
+### 1. The starting observation
 
-Instead of attaching a full emotional readout to every message, give the LLM a tool it can call at reasoning-time decision points:
+People who think primarily in speech and tones (most people) lose critical signal when communicating with LLMs through text. Existing solutions either ignore this or use a push model that dumps emotion labels ("user is happy", "user is frustrated") into the prompt. That's too crude -- tone carries far more than emotion.
+
+Based on research (particularly the Weizmann Institute's 2025 PNAS work), tone simultaneously carries at least five layers of meaning per utterance: syntactic modality, discourse function, information structure, intentional attitude, and unintentional emotion. Body language and facial expressions carry overlapping signals. They're all expressions of the same underlying communicative state, not separate channels.
+
+### 2. Queryable state, not context dump
+
+Instead of streaming emotional metadata into every prompt (which burns context window and adds noise), what if the LLM could query user expressive state as a tool -- pulling specific information at decision points?
 
 ```
 Model's internal reasoning:
@@ -30,84 +36,69 @@ Model's internal reasoning:
        { source: "prosody", signal: "rising intonation on 'caching'" },
        { source: "gesture", signal: "shoulder raise during statement" },
        { source: "gaze", signal: "upward direction — recall/imagination" }
-     ],
-     recommendation: "Treat as brainstorming. Discuss trade-offs
-                       rather than implementing."
+     ]
    }
 ```
 
-The model asks what it needs, when it needs it, with the reasoning context of *why* it's asking. The perception system handles the multimodal fusion and returns a targeted answer.
+This pull model lets the reasoning system decide what's relevant, not the perception system. It also generates data about which dimensions of expression actually matter for LLM decision-making (self-refining).
 
-## Key Architectural Principles
+But this raises a question: what if emotional signal is dense, not sparse? If every clause carries relevant tonal information, a tool-call model breaks down. This led to the idea that the system probably needs multiple operating modes:
 
-### Pull, Not Push
+- **Ambient**: lightweight per-utterance tags, always present, near-zero token cost
+- **Pull**: full structured queries at decision points, on-demand
+- **Stream**: continuous deep integration for high-density contexts (therapy, negotiation, teaching)
 
-The LLM initiates queries to the state service at its own decision points. The perception system doesn't need to know what's relevant to the model's current reasoning -- it just answers questions.
+### 3. An LLM that reasons about emotions
 
-### Unified Communicative State
+Current emotion AI is classification -- acoustic pattern maps to label. But understanding how someone feels is a reasoning problem: it requires synthesizing signals across modalities, over time, with contextual knowledge. "The user said 'that's fine' but their tone dropped, they shrugged, and fifteen minutes ago they were excited about this feature -- so 'fine' here is resignation, not agreement."
 
-Tone, facial expression, and body language aren't separate signal taxonomies. They're multiple sensors reading the same underlying communicative state. A shoulder shrug and a rising intonation and the word "maybe" are all evidence for the same thing: uncertainty. The state service fuses these into a unified representation.
+This led to the idea of a dedicated emotional LLM -- not a classifier, but a reasoner whose entire purpose is building deep emotional understanding. It absorbs the full density of expressive signals (tone, face, body, temporal patterns) and the task LLM queries it rather than processing raw signals itself.
 
-### Queries Carry Context
+### 4. The translation problem (the hard part)
 
-The model doesn't just ask "what is the user feeling?" It asks questions shaped by its current reasoning: "I'm about to treat this as a firm requirement -- is that consistent with how they expressed it?" This context allows the state service to return maximally relevant answers.
+This is where the exploration currently sits, and it's the most important insight so far:
 
-### Self-Refining
+**Emotional expression is a language. Text is a different language. And text is what was losing the information in the first place.**
 
-The queries themselves become data. Logging what the LLM asks about user state and when reveals which dimensions of expression actually matter for model decision-making. This feeds back into improving the state representation. The framework discovers its own most important features.
+If we build a brilliant emotional reasoning system and its interface to the task LLM is a text string -- "the user seems uncertain" -- we've recreated the original lossy compression one layer deeper. The emotional LLM doesn't speak code. The task LLM doesn't speak emotions. And text is an inadequate bridge between them.
 
-## Why This Matters
+This suggests several possible architectures, ranging from pragmatic to aspirational:
 
-LLMs are increasingly used as reasoning partners, not just text generators. The quality of that partnership depends on the model understanding not just *what* you said, but *how* you said it and *what you meant by it*. For people who think primarily in speech and expression (most people), the text interface is a lossy compression of their actual communication.
+1. **Text bridge** (buildable now, knowingly lossy) -- The emotional LLM outputs structured text that the task LLM reads. Information is lost, but even crude emotional signal may improve interpretation. Good enough for a prototype.
 
-This project explores whether giving LLMs on-demand access to the full expressive signal -- structured, queryable, and multimodal -- changes the quality of human-AI collaboration.
+2. **Shared embedding space** -- The emotional and task LLMs share a sub-linguistic representational layer. Emotional understanding passes as high-dimensional vectors, not compressed text. Closer to how multimodal models handle vision + language internally.
 
-## Architecture (Planned)
+3. **Modulation, not translation** -- The emotional system doesn't *communicate* with the task LLM; it *tunes* it. Emotional state modifies attention weights, sampling parameters, or interpretation of ambiguous tokens. Like a musician who *feels* sad and their playing reflects it, versus a musician told "play sadly."
 
-```
-                                    +-------------------+
-                                    |    LLM Runtime    |
-                                    |  (Claude, GPT,    |
-                                    |   Gemini, etc.)   |
-                                    +--------+----------+
-                                             |
-                                    tool call: query_user_state()
-                                             |
-                                             v
-+------------------+           +----------------------------+
-|  Audio Input     |---------->|                            |
-|  (microphone)    |           |   Expressive State Service |
-+------------------+           |                            |
-                               |   - Multimodal fusion      |
-+------------------+           |   - Temporal accumulation  |
-|  Video Input     |---------->|   - Query interpretation   |
-|  (camera)        |           |   - Evidence assembly      |
-+------------------+           |                            |
-                               +----------------------------+
-```
+4. **Single integrated model** -- One model that thinks in both emotions and tasks simultaneously, the way humans do. The eventual right answer, but a training/architecture research problem.
 
-The Expressive State Service:
-- Continuously processes audio/video input (perception runs always)
-- Maintains a rolling state representation (temporal context)
-- Exposes a query API that the LLM calls as a tool
-- Returns structured, evidence-backed answers to specific questions
-- Logs queries for framework refinement
+Option 3 is the most interesting conceptually -- emotion as a force that shapes reasoning rather than data that informs it.
 
-## What's Novel
+## Open Questions
 
-Based on a survey of published research, patents, and production systems (as of April 2026):
+This is an active exploration. Major open threads:
 
-1. **State as a queryable service** -- All existing affect-aware LLM systems use push architectures (Hume EVI, Empathic Prompting, SocialMind). None expose user state as an API the LLM queries on demand.
+- What does the "language of emotional expression" actually look like as a formal representation?
+- Can a text bridge prototype demonstrate enough value to validate the direction?
+- What does modulation (option 3) require architecturally? How deep into transformer internals does it need to go?
+- How do you evaluate whether emotional understanding actually improves LLM behavior?
+- What domains would benefit most? (Coding may be low-signal; therapy/teaching/negotiation may be high-signal)
+- Privacy implications of continuous audio/video perception?
+- Is the relationship between emotional and analytical reasoning fixed, or dynamic and context-dependent? (Early intuition: dynamic -- people can modulate it, like deep focus during chess)
 
-2. **LLM-initiated perception** -- The closest system (Tavus Raven-1 "perception tool calling") has perception triggering tool calls, not reasoning triggering perception queries. The directionality is inverted.
+## Research Foundation
 
-3. **Query-as-data for framework refinement** -- No existing system uses the model's own information needs as a signal for which expressive dimensions matter most.
+A detailed survey of prior art, existing systems, theoretical frameworks, and the novelty analysis is in [Issue #1](https://github.com/nelsong6/emotions-mcp/issues/1). Key findings:
 
-4. **Unified cross-modal communicative state** -- Existing frameworks are modality-specific (FACS for face, ToBI for prosody). No production system fuses these into a single queryable representation of communicative intent.
+- **No existing system** exposes user expressive state as a queryable service (all use push models)
+- **Tavus Raven-1** is closest but inverts the directionality (perception triggers tool calls, not reasoning triggers perception queries)
+- **The Weizmann PNAS work** provides the most rigorous framework for what prosody carries (5 simultaneous layers)
+- **No unified cross-modal framework** exists for fusing tone, face, and body into a single communicative state representation
+- **~200 discernible prosodic patterns** with linguistic-like structure (vocabulary, semantics, syntax) suggest the "language" of tone is discoverable and codifiable
 
 ## Status
 
-Early concept stage. See [Issues](https://github.com/nelsong6/emotions-mcp/issues) for the full research background and development discussion.
+Early-stage concept exploration. The ideas here emerged from a single extended conversation and haven't been validated with a prototype yet. The next step is likely an audio-only proof of concept to test whether even crude emotional signal (via text bridge) measurably changes LLM interpretation quality.
 
 ## License
 
