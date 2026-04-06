@@ -4,11 +4,13 @@
 
 ## The Problem
 
-LLMs can't distinguish between different communicative intents behind identical text, because the differentiating signal was in the delivery, not the words.
+Humans have never needed to fully understand their own emotional state, because the people around them do it for them. Someone across the table reads your posture, your tone, your face — and responds accordingly. They notice you're disengaging before you do. They adjust when you tense up, push when you're engaged, ask "are you okay?" when something's off. Self-knowledge is partially outsourced to the social environment. Your incomplete self-awareness plus everyone else's perception of you forms a complete picture.
 
-When you say "we could add caching to the API layer," your tone, posture, and facial expression tell a listener whether you're making a decision, floating an idea, or thinking aloud. An LLM gets only the transcript. It responds to your words, not your meaning.
+An LLM conversation strips out the entire other half. You're talking to something that's responsive to your words but completely blind to everything your body and voice are broadcasting. For the first time, you're in a collaborative relationship where your partner has zero access to the nonverbal channel that every other partner in your life reads automatically. And you can't compensate by self-reporting, because you don't know your own state well enough — no one does.
 
-This isn't about emotion detection. It's not about making LLMs empathetic. It's about a specific, testable claim: **communicative intent is richer than text, the missing signal is recoverable from audio and video, and giving an LLM access to that signal would make it a better listener.**
+This project is about **restoring the feedback half of human communication that LLM interfaces accidentally amputated.**
+
+The specific, testable claim: communicative intent is richer than text, the missing signal is recoverable from audio and video, and giving an LLM access to that signal would make it a better listener. But the deeper motivation is that this isn't just about recovering signal the user failed to type — it's about perceiving patterns the user isn't consciously aware of, the way any human conversation partner would.
 
 ## What Success Looks Like
 
