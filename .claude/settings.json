@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "emotions-mcp": {
+      "command": "python",
+      "args": ["D:\\repos\\emotions-mcp\\server.py"],
+      "env": {}
+    }
+  }
+}
