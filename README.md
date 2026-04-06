@@ -25,6 +25,16 @@ That's the test. Everything else follows from whether that works.
 
 Hook up mic and camera. Extract basic features: pitch, energy, pace, facial action units, gesture. Translate these into text annotations injected into the LLM prompt. Crude but functional -- the goal is to have something running, not something perfect.
 
+There's existing research and tooling for codifying emotional expression that we can piggyback off of for the early stages rather than building perception from scratch:
+
+- **Hume AI** -- API access to 48 emotional dimensions from voice, plus facial expression analysis. The most production-ready option for getting emotion scores quickly.
+- **FACS (Facial Action Coding System)** -- 44 action units mapping facial muscle movements. Implemented in open-source tools like OpenFace and MediaPipe.
+- **Whisper + prosody extraction** -- OpenAI's Whisper for transcription, combined with libraries like Parselmouth/Praat for pitch, energy, and speech rate extraction.
+- **Weizmann prosodic framework** -- Academic but the most rigorous model of what tone carries (5 simultaneous layers per utterance).
+- **MediaPipe** -- Google's open-source framework for face mesh, pose estimation, and gesture recognition from camera input.
+
+The important design note: these tools output structured scores and classifications (confidence: 0.72, emotion: "determination"). That framing imposes false precision on something that's inherently approximate and contextual. For the prototype, it may be better to translate these signals into natural language descriptions rather than numeric scores -- descriptions that are honest about the approximate, layered nature of emotional expression rather than forcing it into a mathematical frame.
+
 ### Step 2: Establish a baseline
 
 Before testing the system, document what "without it" looks like. Record the same instructions delivered different ways (exploratory vs. decisive, confident vs. uncertain, emphasizing different words). Transcribe to identical text. Send plain text to the LLM. Document responses. This is the control group.
